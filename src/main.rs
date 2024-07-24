@@ -1,9 +1,8 @@
 use anyhow::Error;
+use serde_json;
 use serde_json::Value;
 use std::env;
 
-// Available if you need it!
-// use serde_bencode
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -34,6 +33,51 @@ fn decode_number(encoded_value: &str) -> Result<(Value, &str), Error> {
     Ok((parsed_number.into(), &encoded_value[end_of_num_index + 1..])
 )}
 
+fn decode_dictionary(mut encoded_value: &str) -> Result<(Value, &str), Error> {
+    encoded_value = &encoded_value[1..];
+    let mut serde_json_map = serde_json::Map::new();
+    loop {
+        if encoded_value.chars().next().unwrap() == 'e' {
+            encoded_value = &encoded_value[1..];
+            break;
+        }
+
+        match decode_bencoded_value(encoded_value) {
+            Ok((map_key, remaining)) => {
+                encoded_value = remaining;
+                match decode_bencoded_value(encoded_value) {
+                    Ok((value, remaining)) => {
+                        
+                        serde_json_map.insert(map_key.as_str().unwrap().to_string(), value);
+                        encoded_value = remaining;
+                        if remaining.is_empty(){
+                            break;
+                        }
+        
+                    },
+                    Err(e) => {
+                        print!("Error decoding dictionary.");
+                        return Err(e);
+                    }
+                }
+
+                if remaining.is_empty(){
+                    break;
+                }
+
+            },
+            Err(e) => {
+                print!("Error decoding dictionary.");
+                return Err(e);
+            }
+        }
+
+    }
+    
+    
+    return Ok((serde_json_map.into(), encoded_value));
+}
+
 fn decode_list(mut encoded_value: &str) -> Result<(Value, &str), Error> {
     encoded_value = &encoded_value[1..];
     let mut decoded_values = Vec::new();
@@ -53,7 +97,7 @@ fn decode_list(mut encoded_value: &str) -> Result<(Value, &str), Error> {
 
             },
             Err(e) => {
-                print!("Error decoding string.");
+                print!("Error decoding list.");
                 return Err(e);
             }
         }
@@ -74,6 +118,8 @@ fn decode_bencoded_value(encoded_value: &str) -> Result<(Value, &str), Error> {
 
     } else if first_char == 'l'{
         return decode_list(encoded_value);
+    } else if first_char == 'd'{
+        return decode_dictionary(encoded_value);
     } else {
         panic!("Unhandled encoded value: {}", encoded_value)
     }
@@ -128,6 +174,30 @@ mod tests {
             ]),
             Value::Number(52.into())
         ]);
+
+        match decode_bencoded_value(encoded_value) {
+            Ok((result, remaining)) => {
+                assert_eq!(result, expected);
+                assert_eq!(remaining, "");
+            }
+            Err(e) => panic!("Test failed: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_decode_dict_nested() {
+        let encoded_value = "d4:testl5:helloi52el5:helloi52eei52eee";
+        let expected = serde_json::json!({
+            "test": [
+                "hello",
+                52,
+                [
+                    "hello",
+                    52
+                ],
+                52
+            ]
+        });
 
         match decode_bencoded_value(encoded_value) {
             Ok((result, remaining)) => {
