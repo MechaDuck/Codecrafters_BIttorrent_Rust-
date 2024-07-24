@@ -1,27 +1,9 @@
-use serde_json;
+use anyhow::Error;
+use serde_json::Value;
 use std::env;
 
 // Available if you need it!
 // use serde_bencode
-
-#[allow(dead_code)]
-fn decode_bencoded_value(encoded_value: &str) -> serde_json::Value {
-    // If encoded_value starts with a digit, it's a number
-    if encoded_value.chars().next().unwrap().is_digit(10) {
-        // Example: "5:hello" -> "hello"
-        let colon_index = encoded_value.find(':').unwrap();
-        let number_string = &encoded_value[..colon_index];
-        let number = number_string.parse::<i64>().unwrap();
-        let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
-        return serde_json::Value::String(string.to_string());
-    } else if encoded_value.chars().next().unwrap() == 'i' && encoded_value.chars().last().unwrap() == 'e' {
-        let number = &encoded_value[1..encoded_value.len() - 1];
-        return (number.parse::<i64>()).unwrap().into();      
-    } else {
-        panic!("Unhandled encoded value: {}", encoded_value)
-    }
-}
-
 // Usage: your_bittorrent.sh decode "<encoded_value>"
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -31,10 +13,128 @@ fn main() {
         // Uncomment this block to pass the first stage
         let encoded_value = &args[2];
         let decoded_value = decode_bencoded_value(encoded_value);
-        println!("{}", decoded_value.to_string());
+        println!("{}", decoded_value.unwrap().0.to_string());
     } else {
         println!("unknown command: {}", args[1])
     }
 }
 
+fn decode_string(encoded_value: &str) -> Result<(Value, &str), Error>{
+    let colon_index = encoded_value.find(':').unwrap();
+    let number_string = &encoded_value[..colon_index];
+    let number = number_string.parse::<i64>()?;
+    let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
+    Ok((string.to_string().into(), &encoded_value[colon_index + 1 + number as usize..]))
+}
 
+fn decode_number(encoded_value: &str) -> Result<(Value, &str), Error> {
+    let end_of_num_index = encoded_value.find('e').unwrap();
+    let number = &encoded_value[1..end_of_num_index];
+    let parsed_number = number.parse::<i64>()?;
+    Ok((parsed_number.into(), &encoded_value[end_of_num_index + 1..])
+)}
+
+fn decode_list(mut encoded_value: &str) -> Result<(Value, &str), Error> {
+    encoded_value = &encoded_value[1..];
+    let mut decoded_values = Vec::new();
+
+    loop {
+        if encoded_value.chars().next().unwrap() == 'e' {
+            encoded_value = &encoded_value[1..];
+            break;
+        }
+        match decode_bencoded_value(encoded_value) {
+            Ok((value, remaining)) => {
+                decoded_values.push(value);
+                encoded_value = remaining;
+                if remaining.is_empty(){
+                    break;
+                }
+
+            },
+            Err(e) => {
+                print!("Error decoding string.");
+                return Err(e);
+            }
+        }
+    }
+
+    return Ok((decoded_values.into(), encoded_value));
+}
+
+fn decode_bencoded_value(encoded_value: &str) -> Result<(Value, &str), Error> {
+    // If encoded_value starts with a digit, it's a number
+    if encoded_value.chars().next().unwrap().is_digit(10) {
+        return decode_string(encoded_value);
+    } 
+    let first_char = encoded_value.chars().next().unwrap();
+    
+    if first_char == 'i'{
+        return decode_number(encoded_value);
+
+    } else if first_char == 'l'{
+        return decode_list(encoded_value);
+    } else {
+        panic!("Unhandled encoded value: {}", encoded_value)
+    }
+}
+
+
+// Tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_decode_list_empty() {
+        let encoded_value = "le";
+        let expected = Value::Array(vec![]);
+
+        match decode_bencoded_value(encoded_value) {
+            Ok((result, remaining)) => {
+                assert_eq!(result, expected);
+                assert_eq!(remaining, "");
+            }
+            Err(e) => panic!("Test failed: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_decode_list_basic() {
+        let encoded_value = "l5:helloi52ee";
+        let expected = Value::Array(vec![
+            Value::String("hello".to_string()),
+            Value::Number(52.into())
+        ]);
+
+        match decode_bencoded_value(encoded_value) {
+            Ok((result, remaining)) => {
+                assert_eq!(result, expected);
+                assert_eq!(remaining, "");
+            }
+            Err(e) => panic!("Test failed: {}", e),
+        }
+    }
+
+    #[test]
+    fn test_decode_list_nested() {
+        let encoded_value = "l5:helloi52el5:helloi52eei52ee";
+        let expected = Value::Array(vec![
+            Value::String("hello".to_string()),
+            Value::Number(52.into()),
+            Value::Array(vec![
+                Value::String("hello".to_string()),
+                Value::Number(52.into())
+            ]),
+            Value::Number(52.into())
+        ]);
+
+        match decode_bencoded_value(encoded_value) {
+            Ok((result, remaining)) => {
+                assert_eq!(result, expected);
+                assert_eq!(remaining, "");
+            }
+            Err(e) => panic!("Test failed: {}", e),
+        }
+    }
+}
