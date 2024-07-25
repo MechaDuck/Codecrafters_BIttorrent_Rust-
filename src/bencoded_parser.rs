@@ -1,53 +1,64 @@
 use anyhow::Error;
-use serde_json;
 use serde_json::Value;
+use hex;
 
-
-// Function to decode a bencoded string
-// Main decoder function that dispatches to the appropriate decode function
-pub fn decode_bencoded_value(encoded_value: &str) -> Result<(Value, &str), Error> {
-    if encoded_value.chars().next().unwrap().is_digit(10) {
+// Function to decode a bencoded byte slice
+pub fn decode_bencoded_value(encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
+    if encoded_value[0].is_ascii_digit() {
         return decode_string(encoded_value);
     }
-    let first_char = encoded_value.chars().next().unwrap();
-    if first_char == 'i' {
+    let first_byte = encoded_value[0];
+    if first_byte == b'i' {
         return decode_number(encoded_value);
-    } else if first_char == 'l' {
+    } else if first_byte == b'l' {
         return decode_list(encoded_value);
-    } else if first_char == 'd' {
+    } else if first_byte == b'd' {
         return decode_dictionary(encoded_value);
     } else {
-        panic!("Unhandled encoded value: {}", encoded_value)
+        panic!("Unhandled encoded value: {:?}", encoded_value);
     }
 }
 
-
-fn decode_string(encoded_value: &str) -> Result<(Value, &str), Error> {
-    let colon_index = encoded_value.find(':').unwrap();
-    let number_string = &encoded_value[..colon_index];
-    let number = number_string.parse::<i64>()?;
-    let string = &encoded_value[colon_index + 1..colon_index + 1 + number as usize];
-    Ok((string.to_string().into(), &encoded_value[colon_index + 1 + number as usize..]))
+fn decode_string(encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
+    let mut number: usize = 0;
+    let mut i = 0;
+    // Read the length of the string
+    while i < encoded_value.len() && encoded_value[i].is_ascii_digit() {
+        number = number * 10 + (encoded_value[i] - b'0') as usize;
+        i += 1;
+    }
+    // Skip the colon
+    if i < encoded_value.len() && encoded_value[i] == b':' {
+        i += 1;
+    } else {
+        return Err(anyhow::anyhow!("Invalid bencoded string: missing colon"));
+    }
+    // Extract the string bytes
+    let string_bytes = &encoded_value[i..i + number];
+    let decoded_string = match std::str::from_utf8(string_bytes) {
+        Ok(s) => s.to_string(),
+        Err(_) => hex::encode(string_bytes),
+    };
+    Ok((decoded_string.into(), &encoded_value[i + number..]))
 }
 
 // Function to decode a bencoded number
-fn decode_number(encoded_value: &str) -> Result<(Value, &str), Error> {
-    let end_of_num_index = encoded_value.find('e').unwrap();
+fn decode_number(encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
+    let end_of_num_index = encoded_value.iter().position(|&x| x == b'e').unwrap();
     let number = &encoded_value[1..end_of_num_index];
-    let parsed_number = number.parse::<i64>()?;
+    let parsed_number = std::str::from_utf8(number)?.parse::<i64>()?;
     Ok((parsed_number.into(), &encoded_value[end_of_num_index + 1..]))
 }
 
 // Function to decode a bencoded dictionary
-fn decode_dictionary(mut encoded_value: &str) -> Result<(Value, &str), Error> {
+fn decode_dictionary(mut encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
     encoded_value = &encoded_value[1..];
     let mut serde_json_map = serde_json::Map::new();
     loop {
-        if encoded_value.chars().next().unwrap() == 'e' {
+        if encoded_value[0] == b'e' {
             encoded_value = &encoded_value[1..];
             break;
         }
-        // decode key
         match decode_bencoded_value(encoded_value) {
             Ok((map_key, remaining)) => {
                 encoded_value = remaining;
@@ -74,14 +85,12 @@ fn decode_dictionary(mut encoded_value: &str) -> Result<(Value, &str), Error> {
     Ok((serde_json_map.into(), encoded_value))
 }
 
-
-
 // Function to decode a bencoded list
-fn decode_list(mut encoded_value: &str) -> Result<(Value, &str), Error> {
+fn decode_list(mut encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
     encoded_value = &encoded_value[1..];
     let mut decoded_values = Vec::new();
     loop {
-        if encoded_value.chars().next().unwrap() == 'e' {
+        if encoded_value[0] == b'e' {
             encoded_value = &encoded_value[1..];
             break;
         }
@@ -100,6 +109,7 @@ fn decode_list(mut encoded_value: &str) -> Result<(Value, &str), Error> {
 }
 
 
+
 // Tests for the decoding functions
 #[cfg(test)]
 mod tests {
@@ -107,12 +117,12 @@ mod tests {
 
     #[test]
     fn test_decode_list_empty() {
-        let encoded_value = "le";
+        let encoded_value = b"le";
         let expected = Value::Array(vec![]);
         match decode_bencoded_value(encoded_value) {
             Ok((result, remaining)) => {
                 assert_eq!(result, expected);
-                assert_eq!(remaining, "");
+                assert_eq!(remaining, b"");
             }
             Err(e) => panic!("Test failed: {}", e),
         }
@@ -120,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_decode_list_basic() {
-        let encoded_value = "l5:helloi52ee";
+        let encoded_value = b"l5:helloi52ee";
         let expected = Value::Array(vec![
             Value::String("hello".to_string()),
             Value::Number(52.into())
@@ -128,7 +138,7 @@ mod tests {
         match decode_bencoded_value(encoded_value) {
             Ok((result, remaining)) => {
                 assert_eq!(result, expected);
-                assert_eq!(remaining, "");
+                assert_eq!(remaining, b"");
             }
             Err(e) => panic!("Test failed: {}", e),
         }
@@ -136,7 +146,7 @@ mod tests {
 
     #[test]
     fn test_decode_list_nested() {
-        let encoded_value = "l5:helloi52el5:helloi52eei52ee";
+        let encoded_value = b"l5:helloi52el5:helloi52eei52ee";
         let expected = Value::Array(vec![
             Value::String("hello".to_string()),
             Value::Number(52.into()),
@@ -149,7 +159,7 @@ mod tests {
         match decode_bencoded_value(encoded_value) {
             Ok((result, remaining)) => {
                 assert_eq!(result, expected);
-                assert_eq!(remaining, "");
+                assert_eq!(remaining, b"");
             }
             Err(e) => panic!("Test failed: {}", e),
         }
@@ -157,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_decode_dict_nested() {
-        let encoded_value = "d4:testd7:in_testl5:helloi52el5:helloi52eei52eee";
+        let encoded_value = b"d4:testd7:in_testl5:helloi52el5:helloi52eei52eee";
         let expected = serde_json::json!({
             "test": {"in_test": [
                 "hello",
@@ -172,9 +182,28 @@ mod tests {
         match decode_bencoded_value(encoded_value) {
             Ok((result, remaining)) => {
                 assert_eq!(result, expected);
-                assert_eq!(remaining, "");
+                assert_eq!(remaining, b"");
             }
             Err(e) => panic!("Test failed: {}", e),
         }
     }
+    #[test]
+fn test_decode_dict_with_binary_data() {
+    let encoded_value = b"ld4:name7:example11:binary_data11:hello\x80worldei52ee";
+
+
+    let expected = serde_json::json!([{
+        "name": "example",
+        "binary_data": hex::encode(b"hello\x80world")
+
+    }, 52]);
+    match decode_bencoded_value(encoded_value) {
+        Ok((result, remaining)) => {
+            assert_eq!(result, expected);
+            assert!(remaining.is_empty());
+        }
+        Err(e) => panic!("Test failed: {}", e),
+    }
+}
+
 }
