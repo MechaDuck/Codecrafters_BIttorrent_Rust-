@@ -36,8 +36,10 @@ fn print_metainfo(file: &String) {
     let length = decoded_value["info"]["length"].as_i64().unwrap();
 
     let hash = calculate_hash_of_info(&decoded_value["info"]).unwrap();
-    let metainfo = metainfo::Metainfo::new(tracker_url, length, hash);
-    print!("{}", metainfo.get_formatted_info());
+
+    // TODO: Implement pieces and piece length
+    // let metainfo = metainfo::Metainfo::new(tracker_url, length, hash);
+    //print!("{}", metainfo.get_formatted_info());
 }
 
 fn decode_base64_to_utf8_string(base64_string: &str) -> Result<String> {
