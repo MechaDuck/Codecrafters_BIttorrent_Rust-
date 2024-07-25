@@ -3,7 +3,7 @@ pub struct Metainfo {
     tracker_url: String,
     length: i64,
     hash: String,
-    piece_length: String,
+    piece_length: i64,
     piece_hashes: String,
 }
 
@@ -13,7 +13,7 @@ impl Default for Metainfo {
             tracker_url: String::new(),
             length: 0,
             hash: String::new(),
-            piece_length: String::new(),
+            piece_length: 0,
             piece_hashes: String::new(),
         }
     }
@@ -21,7 +21,7 @@ impl Default for Metainfo {
 
 impl Metainfo {
     // Create a new Metainfo with a specified status line
-    pub fn new(tracker_url: String, length: i64, hash: String, piece_length: String, piece_hashes: String) -> Self {
+    pub fn new(tracker_url: String, length: i64, hash: String, piece_length: i64, piece_hashes: String) -> Self {
         Self { tracker_url, length, hash, piece_length,  piece_hashes}
     }
 
