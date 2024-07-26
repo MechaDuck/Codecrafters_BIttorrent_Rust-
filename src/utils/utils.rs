@@ -45,3 +45,14 @@ pub fn extract_peers_from_base64_string(peers_base64: String) -> Result<Vec<Stri
     Ok(result)
     
 }
+
+pub fn hex_to_byte_representation(data: &String) -> Vec<u8> {
+
+    let hex_string = hex::decode(data);
+    hex_string.unwrap()
+}
+
+pub fn byte_vector_to_utf8_string(byte_vector: Vec<u8>) -> Result<String> {
+    let utf8_string = String::from_utf8(byte_vector).unwrap();
+    Ok(utf8_string)
+}

@@ -14,7 +14,8 @@ use bencode_processing::encoder::encode_bencoded_value;
 
 
 // Main function to handle command-line arguments and execute commands
-fn main() {
+#[tokio::main]
+async fn main() {
     let args: Vec<String> = env::args().collect();
     let command = &args[1];
     let mut torrent_manager = TorrentManager::new(&encode_bencoded_value, &decode_bencoded_value);
@@ -42,8 +43,8 @@ fn main() {
         let content = filereader::read_file_as_vector(file).unwrap();
         let _ = torrent_manager.parse_meta_info_file(content);
         let _ = torrent_manager.init_clients();
-        let _ = torrent_manager.perform_peer_handshake(&args[2]);
-
+        let resp = torrent_manager.perform_peer_handshake(&args[3]).await.unwrap();
+        print!("Peer ID: {}\n",hex::encode(resp[48..].to_vec()));
     } else {
         println!("unknown command: {}", args[1])
     }

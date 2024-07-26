@@ -1,6 +1,7 @@
 use crate::utils;
 use crate::clients;
 
+use std::error::Error;
 use super::torrent_spec::{self};
 use serde_json::Value;
 use anyhow::{anyhow, Ok, Result};
@@ -36,7 +37,7 @@ impl<'a> TorrentManager<'a> {
 
     pub fn parse_meta_info_file(&mut self, data: Vec<u8>) -> Result<()>{
         let decoded_value = (self.decoder)(&data, false)?.0;
-        let mut metainfo = torrent_spec::meta_info::Metainfo::new();
+        let mut metainfo: torrent_spec::meta_info::Metainfo = torrent_spec::meta_info::Metainfo::new();
 
         metainfo.set_tracker_url(utils::decode_base64_to_utf8_string(decoded_value["announce"].as_str().unwrap()).unwrap());
         metainfo.set_length(decoded_value["info"]["length"].as_i64().unwrap());
@@ -71,12 +72,17 @@ impl<'a> TorrentManager<'a> {
         for peer in extracted_peers {
             peers_vector.push(torrent_spec::peer_info::Peer::new(peer));
         }
+        self.peers = Some(peers_vector);
 
         Ok(())
     }
 
-    pub fn perform_peer_handshake(&self, peer_address: &String) {
-
+    pub async fn perform_peer_handshake(&self, peer_address: &String)  -> Result<Vec<u8>, Box<dyn Error>>{
+        let peer_client = clients::peer_client::PeerClient::new();
+        let info_hash = self.metainfo.as_ref().unwrap().get_hash().as_ref().unwrap().clone();
+        let info_hash_bytes = utils::hex_to_byte_representation(&info_hash);
+        let resp = peer_client.perform_handshake(peer_address, info_hash_bytes).await;
+        resp
     }
 
     pub fn print_peers(&self) -> Result<()> {
