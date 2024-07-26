@@ -28,15 +28,32 @@ impl Metainfo {
         self.tracker_url = Some(url);
     }
 
+    // Getter for tracker_url
+    pub fn get_tracker_url(&self) -> &Option<String>{
+        &self.tracker_url
+    }
+
     // Setter for length
     pub fn set_length(&mut self, length: i64) {
         self.length = Some(length);
     }
 
+    // Getter for length
+    pub fn get_length(&self) -> &Option<i64>{
+        &self.length
+    }
+
+
     // Setter for hash
     pub fn set_hash(&mut self, hash: String) {
         self.hash = Some(hash);
     }
+
+    // Getter for tracker_url
+    pub fn get_hash(&self) -> &Option<String>{
+        &self.hash
+    }
+
 
     // Setter for piece_length
     pub fn set_piece_length(&mut self, piece_length: i64) {

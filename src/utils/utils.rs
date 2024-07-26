@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use base64::{engine::general_purpose, Engine};
 use anyhow::{anyhow, Ok, Result};
 use sha1::{Sha1, Digest};
@@ -21,4 +23,25 @@ pub fn calculate_sha1_hash(data:Vec<u8>) -> String {
     let result = hasher.finalize();
     let hex_string = hex::encode(result);
     hex_string
+}
+
+pub fn extract_peers_from_base64_string(peers_base64: String) -> Result<Vec<String>> {
+    let decoded = general_purpose::STANDARD.decode(peers_base64).map_err(|e| anyhow!(e))?;
+
+    let mut result = Vec::new();
+    for chunk in decoded.chunks_exact(6) {
+        if chunk.len() == 6 {
+            // Extract the IP address
+            let ip = Ipv4Addr::new(chunk[0], chunk[1], chunk[2], chunk[3]);
+            // Extract the port
+            let port = u16::from_be_bytes([chunk[4], chunk[5]]);
+            // Format as "IP:Port"
+            let formatted = format!("{}:{}", ip, port);
+            // Add to the result vector
+            result.push(formatted);
+        }
+    }
+    
+    Ok(result)
+    
 }

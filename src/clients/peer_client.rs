@@ -21,6 +21,7 @@ impl PeerClient {
     pub fn new(root_url: String) -> Self {
         Self{root_url, ..Default::default()}
     }
+    
     pub fn perform_handshake(&self) {
 
 
