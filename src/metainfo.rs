@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 
 pub struct Metainfo {
     tracker_url: String,

@@ -1,8 +1,7 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 use anyhow::anyhow;
 use reqwest::blocking::Client;
 use nanoid::nanoid;
-use serde_urlencoded::to_string;
 use hex;
 pub struct TrackerClient {
     client: Client,

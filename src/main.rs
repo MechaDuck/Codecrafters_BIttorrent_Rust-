@@ -10,6 +10,8 @@ use sha1::{Sha1, Digest};
 
 use std::env;
 
+use std::net::Ipv4Addr;
+
 // Main function to handle command-line arguments and execute commands
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -33,7 +35,10 @@ fn main() {
 
         let resp = tracker_client.request_peers(length, hex_info_hash).unwrap();
         let decoded_value = bencode_decoder::decode_bencoded_value(&resp, false).unwrap().0;
-        print!("{}", decoded_value["peers"].as_str().unwrap().to_string());
+
+        let extracted_peers = extract_peers(decoded_value["peers"].as_str().unwrap().to_string()).unwrap();
+
+        print_peers(extracted_peers)
         
     } else {
         println!("unknown command: {}", args[1])
@@ -56,7 +61,6 @@ fn print_metainfo(file: &String) {
     let piece_length = decoded_value["info"]["piece length"].as_i64().unwrap();
     let pieces = decode_base64_to_hex(decoded_value["info"]["pieces"].as_str().unwrap()).unwrap();
     
-    // TODO: Implement pieces and piece length
     let metainfo = metainfo::Metainfo::new(tracker_url, length, hash, piece_length, pieces);
     print!("{}", metainfo.get_formatted_info());
 }
@@ -73,8 +77,6 @@ fn decode_base64_to_hex(base64_string: &str) -> Result<String> {
     Ok(hex_string)
 }
 
-
-
 fn calculate_hash_of_info(info_dict: &Value) -> Result<String> {
     let encoded_info = bencode_encoder::encode_value(info_dict)?;
     let mut hasher = Sha1::new();
@@ -82,4 +84,32 @@ fn calculate_hash_of_info(info_dict: &Value) -> Result<String> {
     let result = hasher.finalize();
     let hex_string = hex::encode(result);
     return Ok(hex_string);
+}
+
+fn extract_peers(peers_base64: String) -> Result<Vec<String>> {
+    let decoded = general_purpose::STANDARD.decode(peers_base64).map_err(|e| anyhow!(e))?;
+
+    let mut result = Vec::new();
+    for chunk in decoded.chunks_exact(6) {
+        if chunk.len() == 6 {
+            // Extract the IP address
+            let ip = Ipv4Addr::new(chunk[0], chunk[1], chunk[2], chunk[3]);
+            // Extract the port
+            let port = u16::from_be_bytes([chunk[4], chunk[5]]);
+            // Format as "IP:Port"
+            let formatted = format!("{}:{}", ip, port);
+            // Add to the result vector
+            result.push(formatted);
+        }
+    }
+    
+    Ok(result)
+    
+}
+
+fn print_peers(peers: Vec<String>) {
+    for peer in peers{
+        print!("{}\n", peer);
+    }
+    
 }
