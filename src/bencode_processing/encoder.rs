@@ -3,7 +3,7 @@ use serde_json::Value;
 use anyhow::{anyhow, Result};
 use base64::{Engine as _, engine::general_purpose};
 
-pub fn encode_value(serde_json_object: &Value) -> Result<Vec<u8>> {
+pub fn encode_bencoded_value(serde_json_object: &Value) -> Result<Vec<u8>> {
     match serde_json_object {
         Value::Number(_) => encode_number(serde_json_object),
         Value:: String(_) => encode_string(serde_json_object, false),
@@ -15,11 +15,11 @@ pub fn encode_value(serde_json_object: &Value) -> Result<Vec<u8>> {
     }
 }
 
-pub fn encode_list(serde_json_object: &Value) -> Result<Vec<u8>> {
+fn encode_list(serde_json_object: &Value) -> Result<Vec<u8>> {
     let decoded_array = serde_json_object.as_array().ok_or_else(|| anyhow!("Value could not be parsed as array"))?;
     let mut encoded_list: Vec<u8> = b"l".to_vec();
     for element in decoded_array {
-        match encode_value(element){
+        match encode_bencoded_value(element){
             Ok(result) => {
                 encoded_list.extend_from_slice(&result);
             },
@@ -33,7 +33,7 @@ pub fn encode_list(serde_json_object: &Value) -> Result<Vec<u8>> {
     return Ok(encoded_list)
 }
 
-pub fn encode_dict(serde_json_object: &Value) -> Result<Vec<u8>> {
+fn encode_dict(serde_json_object: &Value) -> Result<Vec<u8>> {
     let decoded_array = serde_json_object.as_object().ok_or_else(|| anyhow!("Value could not be parsed as array"))?;
     let mut encoded_dict: Vec<u8> = b"d".to_vec();
     for (key, value) in decoded_array {
@@ -46,7 +46,7 @@ pub fn encode_dict(serde_json_object: &Value) -> Result<Vec<u8>> {
             }
         }
 
-        match encode_value(value){
+        match encode_bencoded_value(value){
             Ok(result) => {
                 encoded_dict.extend_from_slice(&result);
             },
@@ -62,7 +62,7 @@ pub fn encode_dict(serde_json_object: &Value) -> Result<Vec<u8>> {
 
 
 
-pub fn encode_string(serde_json_object: &Value, is_utf8: bool) -> Result<Vec<u8>> {
+fn encode_string(serde_json_object: &Value, is_utf8: bool) -> Result<Vec<u8>> {
 
     let decoded_string = serde_json_object.as_str().ok_or_else(|| anyhow!("Value could not be parsed as str"))?;
 
@@ -89,7 +89,7 @@ pub fn encode_string(serde_json_object: &Value, is_utf8: bool) -> Result<Vec<u8>
 
 }
 
-pub fn encode_number(serde_json_object: &Value) -> Result<Vec<u8>> {
+fn encode_number(serde_json_object: &Value) -> Result<Vec<u8>> {
 
     let decoded_number = serde_json_object.as_i64().ok_or_else(|| anyhow!("Value could not be parsed as i64"))?;
     // decode base64 encoding
@@ -167,7 +167,7 @@ mod tests {
     fn helper_test_complex(given: &Value, expectation: Vec<u8>, testname: &str) {
 
         let decoded_json = given;
-        match encode_value(decoded_json) {
+        match encode_bencoded_value(decoded_json) {
             Ok(result) => {
                 println!("Compare: \n{} \n{}",  std::str::from_utf8(&result).unwrap(), std::str::from_utf8(&expectation).unwrap());
 

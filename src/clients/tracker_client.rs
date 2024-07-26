@@ -1,8 +1,10 @@
+use crate::clients::helper;
 use std::collections::HashMap;
 use anyhow::anyhow;
 use reqwest::blocking::Client;
 use nanoid::nanoid;
 use hex;
+
 pub struct TrackerClient {
     client: Client,
     root_url: String,
@@ -39,17 +41,8 @@ impl TrackerClient {
         params.insert("left", length.to_string());
         params.insert("compact", 1.to_string());
         
-        let mut query_string = String::new();
-        for (key, value) in &params {
-            if !query_string.is_empty() {
-                query_string.push('&');
-            }
-            query_string.push_str(&format!("{}={}", key, value));
-        }
-        
-        // Construct the full URL
-        let request_url = format!("{}?{}", self.root_url, query_string);
 
+        let request_url = helper::create_request_url(self.root_url.clone(), params);
         let response = self.client.get(request_url.clone()).send()?;
 
 
