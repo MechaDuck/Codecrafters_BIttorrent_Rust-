@@ -75,6 +75,10 @@ impl<'a> TorrentManager<'a> {
         Ok(())
     }
 
+    pub fn perform_peer_handshake(&self, peer_address: &String) {
+
+    }
+
     pub fn print_peers(&self) -> Result<()> {
         if self.peers.is_none(){
             return Err(anyhow!("Error: peers were not initialized!"));
