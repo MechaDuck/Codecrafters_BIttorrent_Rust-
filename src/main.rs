@@ -34,8 +34,9 @@ fn main() {
         let file = &args[2];
         let content = filereader::read_file_as_vector(file).unwrap();
         let _ = torrent_manager.parse_meta_info_file(content);
+        let _ = torrent_manager.init_clients();
         let _ = torrent_manager.print_peers();
-        
+
     } else {
         println!("unknown command: {}", args[1])
     }
