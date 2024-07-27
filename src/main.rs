@@ -45,6 +45,15 @@ async fn main() {
         let _ = torrent_manager.init_clients();
         let resp = torrent_manager.perform_peer_handshake(&args[3]).await.unwrap();
         print!("Peer ID: {}\n",hex::encode(resp[48..].to_vec()));
+    } else if command == "download_piece" {
+        // read -o flag: path where to save the piece
+        // two positional arguments
+        // - torrentfile name
+        // - piece number
+        // e.g. ./your_bittorrent.sh download_piece -o /tmp/test-piece-0 sample.torrent 0
+        // TODO: #1 Read all arguments as variables
+        
+
     } else {
         println!("unknown command: {}", args[1])
     }
