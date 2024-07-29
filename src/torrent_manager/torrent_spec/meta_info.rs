@@ -60,10 +60,21 @@ impl Metainfo {
         self.piece_length = Some(piece_length);
     }
 
+    // Getter for piece_length
+    pub fn get_piece_length(&self) -> &Option<i64>{
+        &self.piece_length
+    }
+
     // Setter for piece_hashes
     pub fn set_piece_hashes(&mut self, piece_hashes: String) {
         self.piece_hashes = Some(piece_hashes);
     }
+
+    // Getter for piece_hashes
+    pub fn get_piece_hashes(&self) -> &Option<String>{
+        &self.piece_hashes
+    }
+
 
     // return info string
     pub fn get_formatted_info(&self) -> String{

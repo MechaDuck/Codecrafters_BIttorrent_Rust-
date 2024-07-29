@@ -25,6 +25,15 @@ pub fn calculate_sha1_hash(data:Vec<u8>) -> String {
     hex_string
 }
 
+// Calculates sha1 hash from binary and returns it hex encoded
+pub fn calculate_sha1_hash_with_ref(data: &Vec<u8>) -> String {
+    let mut hasher = Sha1::new();
+    hasher.update(data);
+    let result = hasher.finalize();
+    let hex_string = hex::encode(result);
+    hex_string
+}
+
 pub fn extract_peers_from_base64_string(peers_base64: String) -> Result<Vec<String>> {
     let decoded = general_purpose::STANDARD.decode(peers_base64).map_err(|e| anyhow!(e))?;
 

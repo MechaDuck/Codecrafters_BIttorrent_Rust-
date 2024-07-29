@@ -52,7 +52,17 @@ async fn main() {
         // - piece number
         // e.g. ./your_bittorrent.sh download_piece -o /tmp/test-piece-0 sample.torrent 0
         // TODO: #1 Read all arguments as variables
-        
+
+        let output_path = &args[3];
+
+
+        let file = &args[4];
+        let content = filereader::read_file_as_vector(file).unwrap();
+        let _ = torrent_manager.parse_meta_info_file(content);
+        let _ = torrent_manager.init_clients();
+        let piece = torrent_manager.download_piece_with_index(0).await;
+        filereader::write_vector_to_file(&args[4], piece.unwrap());
+        print!("Piece 0 downloaded to {}", &args[3])
 
     } else {
         println!("unknown command: {}", args[1])

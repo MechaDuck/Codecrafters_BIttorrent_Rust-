@@ -1,10 +1,11 @@
 use crate::utils;
 use crate::clients;
 
+use core::num;
 use std::error::Error;
 use super::torrent_spec::{self};
 use serde_json::Value;
-use anyhow::{anyhow, Ok, Result};
+use anyhow::{anyhow, Ok, Result, Context};
 
 // Define a function type for encoding
 type EncoderFn = dyn Fn(&Value) -> Result<Vec<u8>>;
@@ -87,10 +88,13 @@ impl<'a> TorrentManager<'a> {
 
     // Perform handshake with a peer asynchronously
     pub async fn perform_peer_handshake(&self, peer_address: &String) -> Result<Vec<u8>, Box<dyn Error>> {
-        let peer_client = clients::peer_client::PeerClient::new();
+        let mut peer_client = clients::peer_client::PeerClient::new();
         let info_hash = self.metainfo.as_ref().unwrap().get_hash().as_ref().unwrap().clone();
         let info_hash_bytes = utils::hex_to_byte_representation(&info_hash);
-        let resp = peer_client.perform_handshake(peer_address, info_hash_bytes).await;
+        peer_client.connect(peer_address).await?;
+        let resp = peer_client.perform_handshake(info_hash_bytes).await;
+
+
         resp
     }
 
@@ -120,5 +124,57 @@ impl<'a> TorrentManager<'a> {
             return Err(anyhow!("Error: meta info was not initialized!"));
         }
         Ok(())
+    }
+
+    pub async fn download_piece_with_index(&self, piece_index: u32) -> Result<Vec<u8>>{
+
+        let peer =  &self.peers.as_ref().unwrap()[0];
+
+        let mut piece_hashes = self.metainfo.as_ref().unwrap().get_piece_hashes().clone().unwrap();
+        let mut piece_length = self.metainfo.as_ref().unwrap().get_piece_length().clone().unwrap();
+
+        return self.download_piece(peer.get_ip_address(), piece_index, piece_length as u32, 0.to_string()).await;
+
+    }
+
+    pub async fn download_piece(&self, peer_address: &String, piece_index: u32, piece_length: u32, piece_hash: String) -> Result<Vec<u8>> {
+
+
+        let mut peer_client = clients::peer_client::PeerClient::new();
+        let info_hash = self.metainfo.as_ref().unwrap().get_hash().as_ref().unwrap().clone();
+        let info_hash_bytes = utils::hex_to_byte_representation(&info_hash);
+
+        // TODO: Error handling for all awaits
+        peer_client.connect(peer_address).await;
+
+        //TODO: Check responses from awaits
+
+        // create workpackages
+        // (piece_index, block_index, block_begin, block_length)
+
+        let mut piece = vec![0; piece_length  as usize];
+        let block_size = 16*1024;
+        let num_full_blocks = piece_length / block_size;
+        let last_block_length = piece_length % block_size;
+
+        for block_index in 0..num_full_blocks{
+            println!("Performing handshake...");
+            peer_client.perform_handshake(info_hash_bytes.clone()).await;
+            println!("Start download block from piece...");
+            let block = peer_client.download_block(piece_index, block_size * block_index, block_size).await.unwrap();
+            piece.extend_from_slice(&block.2);
+        }
+        peer_client.perform_handshake(info_hash_bytes.clone()).await;
+        let block = peer_client.download_block(piece_index, num_full_blocks, last_block_length).await.unwrap();
+        piece.extend_from_slice(&block.2);
+
+        let got_piece_hash = utils::calculate_sha1_hash_with_ref(&piece);
+
+        // if got_piece_hash != piece_hash {
+        //     return Err(anyhow!("Hash did not match!"));
+        // }
+
+        Ok(piece)
+
     }
 }
