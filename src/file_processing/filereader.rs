@@ -11,6 +11,7 @@ pub fn read_file_as_vector(filename: &str) -> Result<Vec<u8>, Error> {
 
 
 pub fn write_vector_to_file(filename: &str, content: Vec<u8>) -> Result<(), Error> {
+    println!("Writing to {}", filename);
     let mut file = File::create(filename)?;
     file.write_all(&content)?;
     Ok(())

@@ -3,6 +3,8 @@ use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::error::Error;
 
+use crate::utils;
+
 pub struct PeerClient {
     stream: Option<TcpStream>,
 }
@@ -46,6 +48,7 @@ impl PeerClient {
     
     pub async fn perform_handshake(&mut self, mut info_hash: Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>> {
         let stream = self.ensure_connected()?;
+        stream.flush();
     
         let mut handshake_message: Vec<u8> = Vec::new();
         let number: u8 = 19;
@@ -119,8 +122,7 @@ impl PeerClient {
 
         Ok((message_id, payload))
     }
-
-    pub async fn download_block(&mut self, index: u32, begin: u32, length: u32) -> Result<(u32,u32,Vec<u8>), Box<dyn Error>>{
+    pub async fn init_download(&mut self) -> Result<(), Box<dyn Error>>{
         let (message_id, _) = self.wait_for_message().await?;
         if message_id != 5{
             return Err("Could not find message id: \"bitfield\"".into())
@@ -131,6 +133,11 @@ impl PeerClient {
         if message_id != 1{
             return Err("Could not find message id: \"unchoke\"".into())
         }
+
+        Ok(())
+    }
+    pub async fn download_block(&mut self, index: u32, begin: u32, length: u32) -> Result<(u32,u32,Vec<u8>), Box<dyn Error>>{
+    
 
         let mut payload = Vec::new();
         payload.extend_from_slice(&index.to_be_bytes());
@@ -147,9 +154,7 @@ impl PeerClient {
         // Extract the index, begin, and block from the payload
         let index_from_payload = u32::from_be_bytes(payload[0..4].try_into().unwrap());
         let begin_from_payload = u32::from_be_bytes(payload[4..8].try_into().unwrap());
-        let block = payload[8..].to_vec();
-
-        println!("Block successfully downloaded. Length: {}", block.len());
+        let block = payload[8..8 + length as usize].to_vec();
 
         Ok((index_from_payload, begin_from_payload, block))
     }

@@ -128,44 +128,55 @@ impl<'a> TorrentManager<'a> {
 
     pub async fn download_piece_with_index(&self, piece_index: u32) -> Result<Vec<u8>>{
 
-        let peer =  &self.peers.as_ref().unwrap()[0];
+        let peer =  &self.peers.as_ref().unwrap()[1];
 
         let mut piece_hashes = self.metainfo.as_ref().unwrap().get_piece_hashes().clone().unwrap();
-        let mut piece_length = self.metainfo.as_ref().unwrap().get_piece_length().clone().unwrap();
+
+        println!("piece_hashes: {}, index: {}", piece_hashes.len(), piece_index);
+        let mut piece_length;
+        if piece_hashes.len()/40 -1 == piece_index as usize{
+            piece_length = self.metainfo.as_ref().unwrap().get_length().clone().unwrap() % self.metainfo.as_ref().unwrap().get_piece_length().clone().unwrap();
+            if piece_length == 0 {
+                piece_length = self.metainfo.as_ref().unwrap().get_piece_length().clone().unwrap();
+            }
+        }else {
+            piece_length = self.metainfo.as_ref().unwrap().get_piece_length().clone().unwrap();
+        }
 
         return self.download_piece(peer.get_ip_address(), piece_index, piece_length as u32, 0.to_string()).await;
 
     }
 
     pub async fn download_piece(&self, peer_address: &String, piece_index: u32, piece_length: u32, piece_hash: String) -> Result<Vec<u8>> {
-
-
         let mut peer_client = clients::peer_client::PeerClient::new();
+        peer_client.connect(peer_address).await;
+
+        //let mut peer_client = clients::peer_client::PeerClient::new();
         let info_hash = self.metainfo.as_ref().unwrap().get_hash().as_ref().unwrap().clone();
         let info_hash_bytes = utils::hex_to_byte_representation(&info_hash);
 
         // TODO: Error handling for all awaits
-        peer_client.connect(peer_address).await;
+        println!("Performing handshake...");
+        peer_client.perform_handshake(info_hash_bytes.clone()).await;
 
         //TODO: Check responses from awaits
 
         // create workpackages
         // (piece_index, block_index, block_begin, block_length)
 
-        let mut piece = vec![0; piece_length  as usize];
+        let mut piece = vec![];
         let block_size = 16*1024;
         let num_full_blocks = piece_length / block_size;
         let last_block_length = piece_length % block_size;
 
+        peer_client.init_download().await;
+
         for block_index in 0..num_full_blocks{
-            println!("Performing handshake...");
-            peer_client.perform_handshake(info_hash_bytes.clone()).await;
-            println!("Start download block from piece...");
+            //println!("Start download block from piece. Piece_index: {}, Current length: {}, Full length: {}  Offset: {}...",piece_index, piece.len(), piece_length,block_size * block_index);
             let block = peer_client.download_block(piece_index, block_size * block_index, block_size).await.unwrap();
             piece.extend_from_slice(&block.2);
         }
-        peer_client.perform_handshake(info_hash_bytes.clone()).await;
-        let block = peer_client.download_block(piece_index, num_full_blocks, last_block_length).await.unwrap();
+        let block = peer_client.download_block(piece_index, num_full_blocks * block_size, last_block_length).await.unwrap();
         piece.extend_from_slice(&block.2);
 
         let got_piece_hash = utils::calculate_sha1_hash_with_ref(&piece);
@@ -173,7 +184,9 @@ impl<'a> TorrentManager<'a> {
         // if got_piece_hash != piece_hash {
         //     return Err(anyhow!("Hash did not match!"));
         // }
+        peer_client.disconnect().await;
 
+        println!("Downloaded successfully. Length: {}, Size: {}", piece_length, piece.len());
         Ok(piece)
 
     }
