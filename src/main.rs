@@ -63,7 +63,14 @@ async fn main() {
         let piece = torrent_manager.download_piece_with_index(args[5].parse::<u32>().unwrap()).await;
         filereader::write_vector_to_file(&args[3], piece.unwrap());
         print!("Piece 0 downloaded to {}", &args[3])
-
+    } else if command == "download" {
+        let file = &args[4];
+        let content = filereader::read_file_as_vector(file).unwrap();
+        let _ = torrent_manager.parse_meta_info_file(content);
+        let _ = torrent_manager.init_clients();
+        let piece = torrent_manager.download_file().await;
+        filereader::write_vector_to_file(&args[3], piece.unwrap());
+        print!("Piece 0 downloaded to {}", &args[3])
     } else {
         println!("unknown command: {}", args[1])
     }

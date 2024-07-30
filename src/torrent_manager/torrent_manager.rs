@@ -126,6 +126,15 @@ impl<'a> TorrentManager<'a> {
         Ok(())
     }
 
+    pub async fn download_file(&self)-> Result<Vec<u8>> {
+        let mut file = vec![];
+        let mut piece_hashes = self.metainfo.as_ref().unwrap().get_piece_hashes().clone().unwrap();
+        for e in 0..piece_hashes.len()/40{
+            let piece = self.download_piece_with_index(e as u32).await.unwrap();
+            file.extend_from_slice(&piece);
+        }
+        Ok(file)
+    }
     pub async fn download_piece_with_index(&self, piece_index: u32) -> Result<Vec<u8>>{
 
         let peer =  &self.peers.as_ref().unwrap()[1];
