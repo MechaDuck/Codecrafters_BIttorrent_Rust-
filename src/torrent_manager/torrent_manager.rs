@@ -223,7 +223,7 @@ mod tests {
             "info": {
                 "length": 12345,
                 "piece length": 512,
-                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
+                "pieces": general_purpose::STANDARD.encode("a94a8fe5ccb19ba61c4c0873d391e987982fbbd3")
             }
         }).to_string().into_bytes();
 
