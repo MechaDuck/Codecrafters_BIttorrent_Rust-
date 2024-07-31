@@ -3,7 +3,7 @@ pub struct Metainfo {
     length: Option<i64>,
     hash: Option<String>,
     piece_length: Option<i64>,
-    piece_hashes: Option<String>,
+    piece_hashes: Option<Vec<String>>,
 }
 
 impl Default for Metainfo {
@@ -66,23 +66,26 @@ impl Metainfo {
     }
 
     // Setter for piece_hashes
-    pub fn set_piece_hashes(&mut self, piece_hashes: String) {
+    pub fn set_piece_hashes(&mut self, piece_hashes: Vec<String>) {
         self.piece_hashes = Some(piece_hashes);
     }
 
     // Getter for piece_hashes
-    pub fn get_piece_hashes(&self) -> &Option<String>{
+    pub fn get_piece_hashes(&self) -> &Option<Vec<String>>{
         &self.piece_hashes
     }
 
 
-    // return info string
-    pub fn get_formatted_info(&self) -> String{
+    pub fn get_formatted_info(&self) -> String {
         let tracker_url = self.tracker_url.as_ref().map_or("N/A", |url| url.as_str());
         let length = self.length.map_or("N/A".to_string(), |l| l.to_string());
         let hash = self.hash.as_ref().map_or("N/A", |h| h.as_str());
         let piece_length = self.piece_length.map_or("N/A".to_string(), |pl| pl.to_string());
-        let piece_hashes = self.piece_hashes.as_ref().map_or("N/A", |ph| ph.as_str());
+        let piece_hashes = if self.piece_hashes.is_none() {
+            "N/A".to_string()
+        } else {
+            self.piece_hashes.as_ref().unwrap().join(", ")
+        };
 
         format!(
             "Tracker URL: {}\nLength: {}\nInfo Hash: {}\nPiece Length: {}\nPiece Hashes: {}\n",
@@ -92,8 +95,6 @@ impl Metainfo {
             piece_length,
             piece_hashes
         )
-
     }
-
     
 }

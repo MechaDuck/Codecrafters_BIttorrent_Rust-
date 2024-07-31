@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::net::Ipv4Addr;
 
 use base64::{engine::general_purpose, Engine};

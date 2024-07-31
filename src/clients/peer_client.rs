@@ -1,9 +1,7 @@
-use reqwest::Client;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use std::error::Error;
 
-use crate::utils;
 
 pub struct PeerClient {
     stream: Option<TcpStream>,
@@ -48,7 +46,6 @@ impl PeerClient {
     
     pub async fn perform_handshake(&mut self, mut info_hash: Vec<u8>) -> Result<Vec<u8>, Box<dyn Error>> {
         let stream = self.ensure_connected()?;
-        stream.flush();
     
         let mut handshake_message: Vec<u8> = Vec::new();
         let number: u8 = 19;

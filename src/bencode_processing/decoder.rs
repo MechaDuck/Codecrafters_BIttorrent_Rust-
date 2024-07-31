@@ -1,10 +1,10 @@
-use anyhow::Error;
+use std::error::Error;
 use base64::{Engine as _, engine::general_purpose};
 use serde_json::Value;
 
 
 // Function to decode a bencoded byte slice
-pub fn decode_bencoded_value(encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Error> {
+pub fn decode_bencoded_value(encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Box<dyn  Error>> {
     if encoded_value[0].is_ascii_digit() {
         return decode_string(encoded_value, is_utf8);
     }
@@ -20,7 +20,7 @@ pub fn decode_bencoded_value(encoded_value: &[u8], is_utf8: bool) -> Result<(Val
     }
 }
 
-fn decode_string(encoded_value: &[u8], as_utf_8: bool) -> Result<(Value, &[u8]), Error> {
+fn decode_string(encoded_value: &[u8], as_utf_8: bool) -> Result<(Value, &[u8]), Box<dyn  Error>> {
     let mut number: usize = 0;
     let mut i = 0;
     // Read the length of the string
@@ -32,7 +32,7 @@ fn decode_string(encoded_value: &[u8], as_utf_8: bool) -> Result<(Value, &[u8]),
     if i < encoded_value.len() && encoded_value[i] == b':' {
         i += 1;
     } else {
-        return Err(anyhow::anyhow!("Invalid bencoded string: missing colon"));
+        return Err("Invalid bencoded string: missing colon".into());
     }
     // Extract the string bytes
     let string_bytes = &encoded_value[i..i + number];
@@ -41,7 +41,7 @@ fn decode_string(encoded_value: &[u8], as_utf_8: bool) -> Result<(Value, &[u8]),
     if as_utf_8 {
         match std::str::from_utf8(string_bytes) {
             Ok(decoded_utf8)=> decoded_string = decoded_utf8.to_string(),
-            Err(e) => {return Err(anyhow::anyhow!(e))}
+            Err(e) => {return Err(e.into())}
 
         }
     } else {
@@ -53,7 +53,7 @@ fn decode_string(encoded_value: &[u8], as_utf_8: bool) -> Result<(Value, &[u8]),
 }
 
 // Function to decode a bencoded number
-fn decode_number(encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
+fn decode_number(encoded_value: &[u8]) -> Result<(Value, &[u8]), Box<dyn Error>> {
     let end_of_num_index = encoded_value.iter().position(|&x| x == b'e').unwrap();
     let number = &encoded_value[1..end_of_num_index];
     let parsed_number = std::str::from_utf8(number)?.parse::<i64>()?;
@@ -61,7 +61,7 @@ fn decode_number(encoded_value: &[u8]) -> Result<(Value, &[u8]), Error> {
 }
 
 // Function to decode a bencoded dictionary
-fn decode_dictionary(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Error> {
+fn decode_dictionary(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Box<dyn Error>> {
     encoded_value = &encoded_value[1..];
     let mut serde_json_map = serde_json::Map::new();
     loop {
@@ -81,13 +81,13 @@ fn decode_dictionary(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, 
                         }
                     },
                     Err(e) => {
-                        print!("Error decoding dictionary.");
+                        print!("Box<dyn Error> decoding dictionary.");
                         return Err(e);
                     }
                 }
             },
             Err(e) => {
-                print!("Error decoding dictionary.");
+                print!("Box<dyn Error> decoding dictionary.");
                 return Err(e);
             }
         }
@@ -96,7 +96,7 @@ fn decode_dictionary(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, 
 }
 
 // Function to decode a bencoded list
-fn decode_list(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Error> {
+fn decode_list(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8]), Box<dyn Error>> {
     encoded_value = &encoded_value[1..];
     let mut decoded_values = Vec::new();
     loop {
@@ -110,7 +110,7 @@ fn decode_list(mut encoded_value: &[u8], is_utf8: bool) -> Result<(Value, &[u8])
                 encoded_value = remaining;
             },
             Err(e) => {
-                print!("Error decoding list.");
+                print!("Box<dyn Error> decoding list.");
                 return Err(e);
             }
         }

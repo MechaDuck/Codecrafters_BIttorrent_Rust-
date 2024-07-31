@@ -1,15 +1,15 @@
 use serde_json::Value;
-
+use std::error::Error;
 use anyhow::{anyhow, Result};
 use base64::{Engine as _, engine::general_purpose};
 
-pub fn encode_bencoded_value(serde_json_object: &Value) -> Result<Vec<u8>> {
+pub fn encode_bencoded_value(serde_json_object: &Value) -> Result<Vec<u8>, Box<dyn Error>> {
     match serde_json_object {
-        Value::Number(_) => encode_number(serde_json_object),
-        Value:: String(_) => encode_string(serde_json_object, false),
-        Value::Array(_) => encode_list(serde_json_object),
-        Value::Object(_) => encode_dict(serde_json_object),
-        _ => {return Err(anyhow!("Datatype not supported for bencoding..."))}
+        Value::Number(_) => Ok(encode_number(serde_json_object)?),
+        Value:: String(_) => Ok(encode_string(serde_json_object, false)?),
+        Value::Array(_) => Ok(encode_list(serde_json_object)?),
+        Value::Object(_) => Ok(encode_dict(serde_json_object)?),
+        _ => {return Err("Datatype not supported for bencoding...".into())}
 
 
     }
