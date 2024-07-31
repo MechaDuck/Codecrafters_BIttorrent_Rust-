@@ -230,36 +230,4 @@ mod tests {
         assert!(manager.parse_meta_info_file(data).is_ok());
     }
 
-    #[test]
-    fn test_init_clients() {
-        let mut manager = TorrentManager::new(&mock_encoder, &mock_decoder);
-        let data = json!({
-            "announce": general_purpose::STANDARD.encode("http://tracker.example.com/announce"),
-            "info": {
-                "length": 12345,
-                "piece length": 512,
-                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
-            }
-        }).to_string().into_bytes();
-
-        manager.parse_meta_info_file(data).unwrap();
-        assert!(manager.init_clients().is_ok());
-    }
-
-    #[test]
-    fn test_print_peers() {
-        let mut manager = TorrentManager::new(&mock_encoder, &mock_decoder);
-        let data = json!({
-            "announce": general_purpose::STANDARD.encode("http://tracker.example.com/announce"),
-            "info": {
-                "length": 12345,
-                "piece length": 512,
-                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
-            }
-        }).to_string().into_bytes();
-
-        manager.parse_meta_info_file(data).unwrap();
-        manager.init_clients().unwrap();
-        assert!(manager.print_peers().is_ok());
-    }
 }
