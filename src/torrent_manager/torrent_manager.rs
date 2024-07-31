@@ -204,8 +204,7 @@ impl<'a> TorrentManager<'a> {
 mod tests {
     use super::*;
     use serde_json::json;
-    use std::sync::Arc;
-    use tokio::runtime::Runtime;
+    use base64::{engine::general_purpose, Engine};
 
     fn mock_encoder(value: &Value) -> Result<Vec<u8>, Box<dyn Error>> {
         Ok(serde_json::to_vec(value)?)
@@ -220,11 +219,11 @@ mod tests {
     fn test_parse_meta_info_file() {
         let mut manager = TorrentManager::new(&mock_encoder, &mock_decoder);
         let data = json!({
-            "announce": base64::encode("http://tracker.example.com/announce"),
+            "announce": general_purpose::STANDARD.encode("http://tracker.example.com/announce"),
             "info": {
                 "length": 12345,
                 "piece length": 512,
-                "pieces": base64::encode("piecehashesexample")
+                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
             }
         }).to_string().into_bytes();
 
@@ -235,11 +234,11 @@ mod tests {
     fn test_init_clients() {
         let mut manager = TorrentManager::new(&mock_encoder, &mock_decoder);
         let data = json!({
-            "announce": base64::encode("http://tracker.example.com/announce"),
+            "announce": general_purpose::STANDARD.encode("http://tracker.example.com/announce"),
             "info": {
                 "length": 12345,
                 "piece length": 512,
-                "pieces": base64::encode("piecehashesexample")
+                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
             }
         }).to_string().into_bytes();
 
@@ -251,11 +250,11 @@ mod tests {
     fn test_print_peers() {
         let mut manager = TorrentManager::new(&mock_encoder, &mock_decoder);
         let data = json!({
-            "announce": base64::encode("http://tracker.example.com/announce"),
+            "announce": general_purpose::STANDARD.encode("http://tracker.example.com/announce"),
             "info": {
                 "length": 12345,
                 "piece length": 512,
-                "pieces": base64::encode("piecehashesexample")
+                "pieces": general_purpose::STANDARD.encode("piecehashesexample")
             }
         }).to_string().into_bytes();
 
